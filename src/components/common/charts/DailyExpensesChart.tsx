@@ -1,6 +1,6 @@
 // src/components/charts/DailyExpensesChart.tsx
-import React from 'react';
-import { Line } from 'react-chartjs-2';
+import React, { useRef, useEffect } from 'react';
+import Chart from 'chart.js/auto';
 import { Typography, Paper } from '@mui/material';
 
 // Function to generate a random color for the chart lines
@@ -20,74 +20,89 @@ interface DailyExpensesChartProps {
 
 // Component for rendering daily expenses chart
 const DailyExpensesChart: React.FC<DailyExpensesChartProps> = ({ expensesData }) => {
+  const chartRef = useRef<Chart | null>(null); // Reference to store the Chart instance
+
   // Get the current month and year to filter the data
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
 
   // Function to group expenses by branch and day for the current month
   const groupExpensesByBranchAndDayForCurrentMonth = () => {
-    // Object to hold the grouped data
     const dailyExpensesByBranch: { [branch: string]: { [day: string]: number } } = {};
 
-    // Iterate over the expenses data to group by branch and day
     expensesData.forEach((expense) => {
-      const expenseDate = new Date(expense.expenseDate); // Parse the expense date
-      const day = expenseDate.getDate(); // Extract the day from the date
-      const month = expenseDate.getMonth(); // Extract the month from the date
-      const year = expenseDate.getFullYear(); // Extract the year from the date
-      const branchCode = expense.branchCode; // Get the branch code
+      const expenseDate = new Date(expense.expenseDate);
+      const day = expenseDate.getDate();
+      const month = expenseDate.getMonth();
+      const year = expenseDate.getFullYear();
+      const branchCode = expense.branchCode;
 
-      // Check if the expense is in the current month and year
       if (month === currentMonth && year === currentYear) {
         if (!dailyExpensesByBranch[branchCode]) {
-          // Initialize the branch if it doesn't exist
           dailyExpensesByBranch[branchCode] = {};
         }
-        // Aggregate the expense amount for the specific branch and day
         dailyExpensesByBranch[branchCode][day] =
           (dailyExpensesByBranch[branchCode][day] || 0) + (expense.expenseAmount || 0);
       }
     });
 
-    return dailyExpensesByBranch; // Return the grouped data
+    return dailyExpensesByBranch;
   };
 
-  // Group expenses data by branch and day for the current month
   const dailyExpensesByBranch = groupExpensesByBranchAndDayForCurrentMonth();
-
-  // Get the number of days in the current month
   const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-
-  // Create labels for each day in the current month
   const labels = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
-  // Generate datasets for each branch to display in the chart
   const datasets = Object.keys(dailyExpensesByBranch).map((branch) => {
-    const branchData = dailyExpensesByBranch[branch]; // Get daily data for the branch
-    const data = labels.map((day) => branchData[day] || 0); // Map daily data to the array of days
+    const branchData = dailyExpensesByBranch[branch];
+    const data = labels.map((day) => branchData[day] || 0);
 
     return {
-      label: `Daily Expenses - ${branch}`, // Label for the dataset
-      data: data, // Data points for the chart
-      fill: false, // No fill under the line
-      backgroundColor: getRandomColor(), // Random background color for the line
-      borderColor: getRandomColor(), // Random border color for the line
+      label: `Daily Expenses - ${branch}`,
+      data: data,
+      fill: false,
+      backgroundColor: getRandomColor(),
+      borderColor: getRandomColor(),
     };
   });
 
-  // Chart data object containing labels and datasets
   const chartData = {
-    labels: labels, // Day labels for the X-axis
-    datasets: datasets, // Data points for each branch
+    labels: labels,
+    datasets: datasets,
   };
 
-  // Render the chart inside a Material-UI Paper component
+  // Effect to handle the chart lifecycle
+  useEffect(() => {
+    if (chartRef.current) {
+      chartRef.current.destroy(); // Destroy the existing chart instance if it exists
+    }
+
+    // Create a new chart instance
+    const ctx = (document.getElementById('dailyExpensesChart') as HTMLCanvasElement).getContext('2d');
+    if (ctx) {
+      chartRef.current = new Chart(ctx, {
+        type: 'line',
+        data: chartData,
+        options: {
+          responsive: true,
+        },
+      });
+    }
+
+    // Cleanup function to destroy the chart instance on component unmount or update
+    return () => {
+      if (chartRef.current) {
+        chartRef.current.destroy();
+      }
+    };
+  }, [chartData]); // Depend on chartData to update the chart when data changes
+
   return (
     <Paper elevation={3} sx={{ padding: 2, height: '300px' }}>
       <Typography variant="h6" gutterBottom>
         Daily Expenses for Current Month
       </Typography>
-      <Line data={chartData} /> {/* Line chart component from react-chartjs-2 */}
+      <canvas id="dailyExpensesChart" /> {/* Use a canvas for the chart */}
     </Paper>
   );
 };
