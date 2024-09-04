@@ -29,8 +29,6 @@ interface MainContentProps {
   expensesData: Array<any>; // Replace with specific type if available
 }
 
-const drawerWidth = 240;
-
 const MainContent: React.FC<MainContentProps> = ({
   isMobile,
   handleDrawerToggle,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAppSelector, useAppDispatch } from '../../app/hooks';
 import { validateToken } from '../auth/authUtils';
@@ -42,7 +42,8 @@ const SalesPage: React.FC<SalesPageProps> = ({ isMobile, handleDrawerToggle }) =
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchSales = async () => {
+  // Memoize the fetchSales function
+  const fetchSales = useCallback(async () => {
     if (!token) {
       setError('Authentication token is missing. Please log in again.');
       navigate('/login'); // Redirect to login if the token is missing
@@ -71,19 +72,20 @@ const SalesPage: React.FC<SalesPageProps> = ({ isMobile, handleDrawerToggle }) =
       console.error('Failed to fetch sales:', error);
       setError('Failed to fetch sales. Please try again later.');
     }
-  };
+  }, [token, branchCode, dispatch, navigate]); // Include dependencies
 
-  const validateUserToken = async () => {
+  // Memoize the validateUserToken function
+  const validateUserToken = useCallback(async () => {
     const isValid = await validateToken(dispatch);
     if (!isValid) {
       navigate('/login');
     }
-  };
+  }, [dispatch, navigate]); // Include dependencies
 
   useEffect(() => {
     validateUserToken();
     fetchSales();
-  }, [branchCode]); // Fetch sales when branchCode changes
+  }, [validateUserToken, fetchSales]); // Updated dependency array
 
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);

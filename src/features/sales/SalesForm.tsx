@@ -1,7 +1,7 @@
 // SalesForm.tsx
 import React, { useState } from 'react';
 import axios from 'axios';
-import { useAppDispatch, useAppSelector } from '../../app/hooks';
+import {useAppSelector } from '../../app/hooks';
 import ENDPOINTS from '../../config/apiEndpoints';
 import {
   TextField,
@@ -29,7 +29,6 @@ const SalesForm: React.FC<SalesFormProps> = ({ handleClose, fetchSales }) => {
   const staffPhone = useAppSelector((state) => state.auth.staffPhone);
   const branchCode = useAppSelector((state) => state.auth.branchCode);
 
-  const dispatch = useAppDispatch();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

@@ -1,5 +1,4 @@
-// src/components/charts/DailyExpensesChart.tsx
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo, useCallback } from 'react';
 import Chart from 'chart.js/auto';
 import { Typography, Paper } from '@mui/material';
 
@@ -26,8 +25,8 @@ const DailyExpensesChart: React.FC<DailyExpensesChartProps> = ({ expensesData })
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
 
-  // Function to group expenses by branch and day for the current month
-  const groupExpensesByBranchAndDayForCurrentMonth = () => {
+  // Memoize the function to group expenses by branch and day for the current month
+  const groupExpensesByBranchAndDayForCurrentMonth = useCallback(() => {
     const dailyExpensesByBranch: { [branch: string]: { [day: string]: number } } = {};
 
     expensesData.forEach((expense) => {
@@ -47,29 +46,38 @@ const DailyExpensesChart: React.FC<DailyExpensesChartProps> = ({ expensesData })
     });
 
     return dailyExpensesByBranch;
-  };
+  }, [expensesData, currentMonth, currentYear]); // Include currentMonth and currentYear as dependencies
 
-  const dailyExpensesByBranch = groupExpensesByBranchAndDayForCurrentMonth();
-  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-  const labels = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  // Memoize the dailyExpensesByBranch, labels, and datasets to avoid unnecessary recalculations
+  const { labels, datasets } = useMemo(() => {
+    const dailyExpensesByBranch = groupExpensesByBranchAndDayForCurrentMonth();
+    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+    const labels = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
-  const datasets = Object.keys(dailyExpensesByBranch).map((branch) => {
-    const branchData = dailyExpensesByBranch[branch];
-    const data = labels.map((day) => branchData[day] || 0);
+    const datasets = Object.keys(dailyExpensesByBranch).map((branch) => {
+      const branchData = dailyExpensesByBranch[branch];
+      const data = labels.map((day) => branchData[day] || 0);
 
-    return {
-      label: `Daily Expenses - ${branch}`,
-      data: data,
-      fill: false,
-      backgroundColor: getRandomColor(),
-      borderColor: getRandomColor(),
-    };
-  });
+      return {
+        label: `Daily Expenses - ${branch}`,
+        data: data,
+        fill: false,
+        backgroundColor: getRandomColor(),
+        borderColor: getRandomColor(),
+      };
+    });
 
-  const chartData = {
-    labels: labels,
-    datasets: datasets,
-  };
+    return { labels, datasets };
+  }, [groupExpensesByBranchAndDayForCurrentMonth, currentMonth, currentYear]); // Include currentMonth and currentYear as dependencies
+
+  // Memoize the chartData to avoid unnecessary object recreation
+  const chartData = useMemo(
+    () => ({
+      labels: labels,
+      datasets: datasets,
+    }),
+    [labels, datasets]
+  );
 
   // Effect to handle the chart lifecycle
   useEffect(() => {

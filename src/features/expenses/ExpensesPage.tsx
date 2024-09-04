@@ -1,34 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAppSelector, useAppDispatch } from '../../app/hooks';
 import { validateToken } from '../auth/authUtils';
-import { setExpenses, addExpense, removeExpense, setError, setLoading } from './ExpenseSlice';
+import { setExpenses, addExpense, setError, setLoading } from './ExpenseSlice';
 import { RootState } from '../../app/store';
 import { useNavigate } from 'react-router-dom';
 import MenuIcon from '@mui/icons-material/Menu';
-import { MenuItem } from '@mui/material';
-
-import {
-  useTheme, Container, Typography, TextField, Button,
-  Box, Modal, Toolbar, Avatar, InputAdornment, Alert,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, IconButton, Divider
-} from '@mui/material';
-import DeleteIcon from '@mui/icons-material/Delete';
+import { MenuItem, useTheme, Container, Typography, TextField, Button, Box, Modal, Toolbar, Avatar, InputAdornment, Alert, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, IconButton } from '@mui/material';
 import ENDPOINTS from '../../config/apiEndpoints';
 
 interface ExpensePageProps {
   isMobile: boolean;
   handleDrawerToggle: () => void;
-}
-
-interface Expense {
-  transactionReference: string;
-  branchCode: string;
-  staffPhone: string;
-  expenseDate: string;
-  expenseAmount: number;
-  expenseCategory: string;
-  receiptImageUrl: string;
 }
 
 const ExpensesPage: React.FC<ExpensePageProps> = ({ isMobile, handleDrawerToggle }) => {
@@ -48,7 +31,8 @@ const ExpensesPage: React.FC<ExpensePageProps> = ({ isMobile, handleDrawerToggle
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
 
-  const fetchExpenses = async () => {
+  // Using useCallback to memoize the fetchExpenses function
+  const fetchExpenses = useCallback(async () => {
     dispatch(setLoading());
     try {
       const response = branchCode === 'HQ001'
@@ -60,7 +44,7 @@ const ExpensesPage: React.FC<ExpensePageProps> = ({ isMobile, handleDrawerToggle
       console.error('Failed to fetch expenses:', error);
       dispatch(setError('Failed to fetch expenses'));
     }
-  };
+  }, [branchCode, dispatch]);
 
   const handleAddExpense = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,15 +87,12 @@ const ExpensesPage: React.FC<ExpensePageProps> = ({ isMobile, handleDrawerToggle
     };
 
     checkToken();
-    fetchExpenses();
-  }, [dispatch, navigate, branchCode]);
+    fetchExpenses(); // Call fetchExpenses within useEffect
+  }, [fetchExpenses, dispatch, navigate]); // Updated dependency array
 
   const handleOpen = () => setOpen(true);
   const handleClose = () => setOpen(false);
 
-  const handleRemoveExpense = (transactionReference: string) => {
-    dispatch(removeExpense(transactionReference));
-  };
 
   const theme = useTheme();
   const sortedExpenses = [...expenses].sort((a, b) => new Date(b.expenseDate).getTime() - new Date(a.expenseDate).getTime());
@@ -251,7 +232,6 @@ const ExpensesPage: React.FC<ExpensePageProps> = ({ isMobile, handleDrawerToggle
                 <TableCell align="right">Branch Code</TableCell>
                 <TableCell align="right">Category</TableCell>
                 <TableCell align="right">Staff Phone</TableCell>
-               
               </TableRow>
             </TableHead>
             <TableBody>
@@ -267,7 +247,6 @@ const ExpensesPage: React.FC<ExpensePageProps> = ({ isMobile, handleDrawerToggle
                   <TableCell align="right">{expense.branchCode}</TableCell>
                   <TableCell align="right">{expense.expenseCategory}</TableCell>
                   <TableCell align="right">{expense.staffPhone}</TableCell>
-                 
                 </TableRow>
               ))}
             </TableBody>
