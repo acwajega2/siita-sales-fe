@@ -43,7 +43,7 @@ jobs:
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_PRIVATE_KEY }}
           source: build/*
-          target: /var/www/react-app/
+          target: /var/www/siita-app/
 
       - name: Set Correct Permissions on EC2
         run: |
