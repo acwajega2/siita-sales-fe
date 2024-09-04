@@ -47,7 +47,7 @@ jobs:
 
       - name: Set Correct Permissions on EC2
         run: |
-          ssh -i ssh_key ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "sudo chmod -R 755 /var/www/react-app"
+          ssh -i ssh_key ${{ secrets.EC2_USERNAME }}@${{ secrets.EC2_HOST }} "sudo chmod -R 755 /var/www/siita-app"
 
       - name: Reload Nginx
         run: |
