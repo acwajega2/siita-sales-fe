@@ -1,9 +1,8 @@
-// src/components/charts/ProfitChart.tsx
 import React, { useRef, useEffect, useMemo } from 'react';
 import Chart from 'chart.js/auto';
-import { Typography, Paper } from '@mui/material';
+import { Typography, Paper, Box, Grid, Card, CardContent } from '@mui/material';
 
-// Function to generate a random color for the chart lines
+// Function to generate a random color for the chart lines and backgrounds
 const getRandomColor = () => {
   const letters = '0123456789ABCDEF';
   let color = '#';
@@ -11,6 +10,11 @@ const getRandomColor = () => {
     color += letters[Math.floor(Math.random() * 16)];
   }
   return color;
+};
+
+// Currency formatter for UGX
+const formatCurrencyUGX = (amount: number) => {
+  return new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX' }).format(amount);
 };
 
 // Define the props for the ProfitChart component
@@ -23,7 +27,8 @@ interface ProfitChartProps {
 const ProfitChart: React.FC<ProfitChartProps> = ({ salesData, expensesData }) => {
   const chartRef = useRef<Chart | null>(null);
 
-  const chartData = useMemo(() => {
+  // Calculate chart data and summary with useMemo to avoid recalculating on every render
+  const { chartData, branchProfits, overallMonthlyProfits, branchColors } = useMemo(() => {
     const groupAndAggregateDataByBranch = (data: Array<any>, dateKey: string, valueKey: string) => {
       const groupedData: { [key: string]: number[] } = {};
       data.forEach((item) => {
@@ -52,22 +57,43 @@ const ProfitChart: React.FC<ProfitChartProps> = ({ salesData, expensesData }) =>
     };
 
     const monthlyProfitByBranch = calculateProfitByBranch(monthlySalesByBranch, monthlyExpensesByBranch);
+
+    const branchProfits: { [key: string]: number } = {};
+    const overallMonthlyProfits: number[] = Array(12).fill(0);
+    const branchColors: { [key: string]: string } = {}; // Store colors for each branch
+
+    Object.keys(monthlyProfitByBranch).forEach((branch) => {
+      monthlyProfitByBranch[branch].forEach((profit, monthIndex) => {
+        branchProfits[branch] = (branchProfits[branch] || 0) + profit;
+        overallMonthlyProfits[monthIndex] += profit;
+
+        // Generate and store a color for the branch
+        if (!branchColors[branch]) {
+          branchColors[branch] = getRandomColor();
+        }
+      });
+    });
+
     const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
     const datasets = Object.keys(monthlyProfitByBranch).map((branch) => {
-      const randomColor = getRandomColor();
       return {
         label: `Profit - ${branch}`,
         data: monthlyProfitByBranch[branch],
         fill: false,
-        backgroundColor: randomColor,
-        borderColor: randomColor,
+        backgroundColor: branchColors[branch],
+        borderColor: branchColors[branch],
       };
     });
 
     return {
-      labels: labels,
-      datasets: datasets,
+      chartData: {
+        labels: labels,
+        datasets: datasets,
+      },
+      branchProfits: branchProfits,
+      overallMonthlyProfits: overallMonthlyProfits,
+      branchColors: branchColors,
     };
   }, [salesData, expensesData]);
 
@@ -95,11 +121,40 @@ const ProfitChart: React.FC<ProfitChartProps> = ({ salesData, expensesData }) =>
   }, [chartData]);
 
   return (
-    <Paper elevation={3} sx={{ padding: 2, height: '300px' }}>
+    <Paper elevation={3} sx={{ padding: 2 }}>
       <Typography variant="h6" gutterBottom>
         Monthly Profit by Branch
       </Typography>
       <canvas id="profitChart" />
+
+      {/* Summary Section */}
+      <Box mt={2}>
+        <Typography variant="h6">Profit Summary (in UGX)</Typography>
+        <Grid container spacing={2}>
+          {Object.keys(branchProfits).map((branch) => (
+            <Grid item xs={12} md={6} key={branch}>
+              <Card sx={{ backgroundColor: branchColors[branch] + '20' }}> {/* Use a transparent background color */}
+                <CardContent>
+                  <Typography variant="h6">
+                    {branch} Branch
+                  </Typography>
+                  <Typography variant="body1">
+                    Total profit: {formatCurrencyUGX(branchProfits[branch])}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+          <Grid item xs={12}>
+            <Typography variant="h6">Overall Monthly Profits:</Typography>
+            {chartData.labels.map((month, index) => (
+              <Typography variant="body1" key={month}>
+                {month}: {formatCurrencyUGX(overallMonthlyProfits[index])}
+              </Typography>
+            ))}
+          </Grid>
+        </Grid>
+      </Box>
     </Paper>
   );
 };

@@ -1,8 +1,8 @@
 import React, { useRef, useEffect, useMemo, useCallback } from 'react';
 import Chart from 'chart.js/auto';
-import { Typography, Paper } from '@mui/material';
+import { Typography, Paper, Box, Grid, Card, CardContent } from '@mui/material';
 
-// Function to generate a random color for the chart lines
+// Function to generate a random color for the chart lines and backgrounds
 const getRandomColor = () => {
   const letters = '0123456789ABCDEF';
   let color = '#';
@@ -10,6 +10,11 @@ const getRandomColor = () => {
     color += letters[Math.floor(Math.random() * 16)];
   }
   return color;
+};
+
+// Currency formatter for UGX
+const formatCurrencyUGX = (amount: number) => {
+  return new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX' }).format(amount);
 };
 
 // Define the props for the DailyExpensesChart component
@@ -49,25 +54,38 @@ const DailyExpensesChart: React.FC<DailyExpensesChartProps> = ({ expensesData })
   }, [expensesData, currentMonth, currentYear]); // Include currentMonth and currentYear as dependencies
 
   // Memoize the dailyExpensesByBranch, labels, and datasets to avoid unnecessary recalculations
-  const { labels, datasets } = useMemo(() => {
+  const { labels, datasets, branchTotals, overallTotal, branchColors } = useMemo(() => {
     const dailyExpensesByBranch = groupExpensesByBranchAndDayForCurrentMonth();
     const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
     const labels = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+    const branchTotals: { [branch: string]: number } = {};
+    const branchColors: { [branch: string]: string } = {}; // Store colors for each branch
+    let overallTotal = 0;
 
     const datasets = Object.keys(dailyExpensesByBranch).map((branch) => {
       const branchData = dailyExpensesByBranch[branch];
       const data = labels.map((day) => branchData[day] || 0);
 
+      // Calculate the total for each branch
+      const totalForBranch = data.reduce((sum, amount) => sum + amount, 0);
+      branchTotals[branch] = totalForBranch;
+      overallTotal += totalForBranch;
+
+      // Generate and store a color for the branch
+      const branchColor = getRandomColor();
+      branchColors[branch] = branchColor;
+
       return {
         label: `Daily Expenses - ${branch}`,
         data: data,
         fill: false,
-        backgroundColor: getRandomColor(),
-        borderColor: getRandomColor(),
+        backgroundColor: branchColor,
+        borderColor: branchColor,
       };
     });
 
-    return { labels, datasets };
+    return { labels, datasets, branchTotals, overallTotal, branchColors };
   }, [groupExpensesByBranchAndDayForCurrentMonth, currentMonth, currentYear]); // Include currentMonth and currentYear as dependencies
 
   // Memoize the chartData to avoid unnecessary object recreation
@@ -106,11 +124,37 @@ const DailyExpensesChart: React.FC<DailyExpensesChartProps> = ({ expensesData })
   }, [chartData]); // Depend on chartData to update the chart when data changes
 
   return (
-    <Paper elevation={3} sx={{ padding: 2, height: '300px' }}>
+    <Paper elevation={3} sx={{ padding: 2 }}>
       <Typography variant="h6" gutterBottom>
         Daily Expenses for Current Month
       </Typography>
       <canvas id="dailyExpensesChart" /> {/* Use a canvas for the chart */}
+      
+      {/* Summary Section */}
+      <Box mt={2}>
+        <Typography variant="h6">Summary (in UGX)</Typography>
+        <Grid container spacing={2}>
+          {Object.keys(branchTotals).map((branch) => (
+            <Grid item xs={12} md={6} key={branch}>
+              <Card sx={{ backgroundColor: branchColors[branch] + '20' }}> {/* Use a transparent background color */}
+                <CardContent>
+                  <Typography variant="h6">
+                    {branch} Branch
+                  </Typography>
+                  <Typography variant="body1">
+                    Total Expenses: {formatCurrencyUGX(branchTotals[branch])}
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+          ))}
+          <Grid item xs={12}>
+            <Typography variant="h6">
+              Overall Total Expenses: {formatCurrencyUGX(overallTotal)}
+            </Typography>
+          </Grid>
+        </Grid>
+      </Box>
     </Paper>
   );
 };

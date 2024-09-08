@@ -1,5 +1,3 @@
-// src/components/MainContent.tsx
-
 import React from 'react';
 import {
   Box,
@@ -18,6 +16,7 @@ import MonthlyExpensesChart from '../components/common/charts/MonthlyExpensesCha
 import YtdSalesChart from '../components/common/charts/YtdSalesChart';
 import YtdExpensesChart from '../components/common/charts/YtdExpensesChart';
 import ProfitChart from '../components/common/charts/ProfitChart';
+import TotalDailySalesChart from '../components/common/charts/TotalDailySalesChart'; // Import TotalDailySalesChart
 import { Outlet } from 'react-router-dom';
 import { useTheme } from '@mui/material';
 
@@ -95,6 +94,10 @@ const MainContent: React.FC<MainContentProps> = ({
         {isAuthenticated ? (
           <Container maxWidth="lg">
             <Grid container spacing={4}>
+              {/* Move TotalDailySalesChart to the top */}
+              <Grid item xs={12}>
+                <TotalDailySalesChart salesData={salesData} />
+              </Grid>
               <Grid item xs={12} md={6}>
                 <DailySalesChart salesData={salesData} />
               </Grid>
