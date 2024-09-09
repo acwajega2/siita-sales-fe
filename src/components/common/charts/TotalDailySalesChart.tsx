@@ -120,19 +120,19 @@ const TotalDailySalesChart: React.FC<TotalDailySalesChartProps> = ({ salesData }
   }, [chartData]);
 
   return (
-    <Paper elevation={3} sx={{ padding: 2 }}>
+    <Paper elevation={3} sx={{ padding: 3 }}>
       <Typography variant="h6" gutterBottom>
         Total Daily Sales for All Branches (Current Month)
       </Typography>
       <canvas id="totalDailySalesChart" />
 
       {/* Summary Section */}
-      <Box mt={2}>
-        <Typography variant="body1">
-          <strong>Total Sales for Current Month:</strong> {formatCurrencyUGX(totalSales)}
+      <Box mt={3}>
+        <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+          Total Sales for Current Month: {formatCurrencyUGX(totalSales)}
         </Typography>
-        <Typography variant="body1">
-          <strong>Running Average Daily Sales:</strong> {formatCurrencyUGX(runningAverage)}
+        <Typography variant="body1" sx={{ fontWeight: 'bold', mt: 1 }}>
+          Running Average Daily Sales: {formatCurrencyUGX(runningAverage)}
         </Typography>
       </Box>
     </Paper>

@@ -22,65 +22,78 @@ interface DailySalesChartProps {
   salesData: Array<{ saleDate: string; saleAmount?: number; branchCode: string }>;
 }
 
+// Helper function to group sales by branch and day for a given month
+const groupSalesByBranchAndMonth = (salesData: any[], month: number, year: number) => {
+  const salesByBranch: { [branch: string]: { [day: number]: number } } = {};
+  salesData.forEach((sale) => {
+    const saleDate = new Date(sale.saleDate);
+    const day = saleDate.getDate();
+    const saleMonth = saleDate.getMonth();
+    const saleYear = saleDate.getFullYear();
+    const branchCode = sale.branchCode;
+
+    if (saleMonth === month && saleYear === year) {
+      if (!salesByBranch[branchCode]) {
+        salesByBranch[branchCode] = {};
+      }
+      salesByBranch[branchCode][day] = (salesByBranch[branchCode][day] || 0) + (sale.saleAmount || 0);
+    }
+  });
+  return salesByBranch;
+};
+
 // Component for rendering daily sales chart
 const DailySalesChart: React.FC<DailySalesChartProps> = ({ salesData }) => {
-  const chartRef = useRef<Chart | null>(null); // Reference to store the Chart instance
+  const chartRef = useRef<Chart | null>(null);
 
   // Calculate chart data and totals with useMemo to avoid recalculating on every render
-  const { labels, datasets, branchTotals, overallTotal, branchRunningAverages, branchColors } = useMemo(() => {
+  const { labels, datasets, branchTotals, branchLastMonthTotals, branchSalesDifference, branchSalesPercentage, currentSalesTotal, lastMonthSalesTotal } = useMemo(() => {
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
+    const today = new Date().getDate();
 
-    // Function to group sales by branch and day for the current month
-    const groupSalesByBranchAndDayForCurrentMonth = () => {
-      const dailySalesByBranch: { [branch: string]: { [day: string]: number } } = {};
-      salesData.forEach((sale) => {
-        const saleDate = new Date(sale.saleDate);
-        const day = saleDate.getDate();
-        const month = saleDate.getMonth();
-        const year = saleDate.getFullYear();
-        const branchCode = sale.branchCode;
+    // Calculate sales for the current and last month
+    const dailySalesByBranch = groupSalesByBranchAndMonth(salesData, currentMonth, currentYear);
+    const lastMonthSalesByBranch = groupSalesByBranchAndMonth(salesData, currentMonth - 1, currentYear);
 
-        if (month === currentMonth && year === currentYear) {
-          if (!dailySalesByBranch[branchCode]) {
-            dailySalesByBranch[branchCode] = {};
-          }
-          dailySalesByBranch[branchCode][day] =
-            (dailySalesByBranch[branchCode][day] || 0) + (sale.saleAmount || 0);
-        }
-      });
+    const labels = Array.from({ length: today }, (_, i) => i + 1);
 
-      return dailySalesByBranch;
-    };
-
-    const dailySalesByBranch = groupSalesByBranchAndDayForCurrentMonth();
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    const labels = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-
+    let currentSalesTotal = 0;
+    let lastMonthSalesTotal = 0;
     const branchTotals: { [branch: string]: number } = {};
-    const branchRunningAverages: { [branch: string]: number } = {};
-    const branchColors: { [branch: string]: string } = {}; // Store colors for each branch
-    let overallTotal = 0;
+    const branchLastMonthTotals: { [branch: string]: number } = {};
+    const branchSalesDifference: { [branch: string]: number } = {};
+    const branchSalesPercentage: { [branch: string]: string } = {};
 
     const datasets = Object.keys(dailySalesByBranch).map((branch) => {
       const branchData = dailySalesByBranch[branch];
       const data = labels.map((day) => branchData[day] || 0);
 
-      // Calculate the total for each branch
+      // Calculate the total sales for each branch this month
       const totalForBranch = data.reduce((sum, amount) => sum + amount, 0);
       branchTotals[branch] = totalForBranch;
-      overallTotal += totalForBranch;
+      currentSalesTotal += totalForBranch;
 
-      // Calculate the running average for the branch
-      const daysWithSales = data.filter((amount) => amount > 0).length;
-      branchRunningAverages[branch] = daysWithSales > 0 ? totalForBranch / daysWithSales : 0;
+      // Calculate last month’s sales total for the same branch
+      const lastMonthBranchData = lastMonthSalesByBranch[branch] || {};
+      const lastMonthTotalForBranch = labels.reduce((sum, day) => sum + (lastMonthBranchData[day] || 0), 0);
+      branchLastMonthTotals[branch] = lastMonthTotalForBranch;
+      lastMonthSalesTotal += lastMonthTotalForBranch;
 
-      // Generate and store a color for the branch
+      // Calculate net improvement or decline and percentage change for each branch
+      const difference = totalForBranch - lastMonthTotalForBranch;
+      const percentageChange = lastMonthTotalForBranch
+        ? ((difference / lastMonthTotalForBranch) * 100).toFixed(2)
+        : 'N/A';
+
+      branchSalesDifference[branch] = difference;
+      branchSalesPercentage[branch] = percentageChange;
+
+      // Generate a random color for each branch
       const branchColor = getRandomColor();
-      branchColors[branch] = branchColor;
 
       return {
-        label: `Daily Sales - ${branch}`,
+        label: `Sales - ${branch}`,
         data: data,
         fill: false,
         backgroundColor: branchColor,
@@ -88,23 +101,22 @@ const DailySalesChart: React.FC<DailySalesChartProps> = ({ salesData }) => {
       };
     });
 
-    return { labels, datasets, branchTotals, overallTotal, branchRunningAverages, branchColors };
-  }, [salesData]); // Depend on salesData to update the chart when data changes
+    return { labels, datasets, branchTotals, branchLastMonthTotals, branchSalesDifference, branchSalesPercentage, currentSalesTotal, lastMonthSalesTotal };
+  }, [salesData]);
 
   // Effect to handle the chart lifecycle
   useEffect(() => {
     if (chartRef.current) {
-      chartRef.current.destroy(); // Destroy the existing chart instance if it exists
+      chartRef.current.destroy(); // Destroy the existing chart instance
     }
 
-    // Create a new chart instance
     const ctx = (document.getElementById('dailySalesChart') as HTMLCanvasElement).getContext('2d');
     if (ctx) {
       chartRef.current = new Chart(ctx, {
         type: 'line',
         data: {
-          labels: labels,
-          datasets: datasets,
+          labels,
+          datasets,
         },
         options: {
           responsive: true,
@@ -112,46 +124,114 @@ const DailySalesChart: React.FC<DailySalesChartProps> = ({ salesData }) => {
       });
     }
 
-    // Cleanup function to destroy the chart instance on component unmount or update
     return () => {
       if (chartRef.current) {
         chartRef.current.destroy();
       }
     };
-  }, [labels, datasets]); // Depend on labels and datasets
+  }, [labels, datasets]);
+
+  const overallSalesDifference = currentSalesTotal - lastMonthSalesTotal;
+  const overallPercentageChange = lastMonthSalesTotal
+    ? ((overallSalesDifference / lastMonthSalesTotal) * 100).toFixed(2)
+    : 'N/A';
 
   return (
     <Paper elevation={3} sx={{ padding: 2 }}>
       <Typography variant="h6" gutterBottom>
-        Daily Sales for Current Month
+        Daily Sales for Current Month (Grouped by Branch)
       </Typography>
-      <canvas id="dailySalesChart" /> {/* Use a canvas for the chart */}
-      
+      <canvas id="dailySalesChart" />
+
       {/* Summary Section */}
       <Box mt={2}>
-        <Typography variant="h6">Summary (in UGX)</Typography>
-        <Grid container spacing={2}>
-          {Object.keys(branchTotals).map((branch) => (
-            <Grid item xs={12} md={6} key={branch}>
-              <Card sx={{ backgroundColor: branchColors[branch] + '20' }}> {/* Use a transparent background color */}
-                <CardContent>
-                  <Typography variant="h6">
-                    {branch} Branch
-                  </Typography>
-                  <Typography variant="body1">
-                    Total Sales: {formatCurrencyUGX(branchTotals[branch])}
-                  </Typography>
-                  <Typography variant="body1">
-                    Running Average: {formatCurrencyUGX(branchRunningAverages[branch])}
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
+        <Typography variant="h6" gutterBottom>
+          Sales Summary (in UGX)
+        </Typography>
+        <Grid container spacing={3}>
+          {Object.keys(branchTotals).map((branch) => {
+            const isImprovement = branchSalesDifference[branch] >= 0;
+            return (
+              <Grid item xs={12} md={6} key={branch}>
+                <Card
+                  sx={{
+                    boxShadow: 4,
+                    borderRadius: 3,
+                    backgroundColor: '#f4f6f8',
+                    padding: '20px',
+                  }}
+                >
+                  <CardContent>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontWeight: 'bold',
+                        color: '#1976d2',
+                        marginBottom: '15px',
+                      }}
+                    >
+                      {branch} Branch
+                    </Typography>
+
+                    <Typography variant="body2" gutterBottom>
+                      <strong>Total Sales (This Month):</strong>{' '}
+                      {formatCurrencyUGX(branchTotals[branch])}
+                    </Typography>
+                    <Typography variant="body2" gutterBottom>
+                      <strong>Total Sales (Last Month, same period):</strong>{' '}
+                      {formatCurrencyUGX(branchLastMonthTotals[branch])}
+                    </Typography>
+
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 'bold',
+                        color: isImprovement ? 'green' : 'red',
+                        marginTop: '10px',
+                      }}
+                    >
+                      {isImprovement ? 'Net Improvement' : 'Decline'}: {formatCurrencyUGX(branchSalesDifference[branch])} ({branchSalesPercentage[branch]}%)
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+            );
+          })}
           <Grid item xs={12}>
-            <Typography variant="h6">
-              Overall Total Sales: {formatCurrencyUGX(overallTotal)}
-            </Typography>
+            <Card sx={{ boxShadow: 4, borderRadius: 3, backgroundColor: '#f4f6f8', padding: '20px' }}>
+              <CardContent>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontWeight: 'bold',
+                    color: '#1976d2',
+                    marginBottom: '15px',
+                  }}
+                >
+                  Overall Sales Summary
+                </Typography>
+
+                <Typography variant="body2" gutterBottom>
+                  <strong>Total Sales (This Month):</strong>{' '}
+                  {formatCurrencyUGX(currentSalesTotal)}
+                </Typography>
+                <Typography variant="body2" gutterBottom>
+                  <strong>Total Sales (Last Month, same period):</strong>{' '}
+                  {formatCurrencyUGX(lastMonthSalesTotal)}
+                </Typography>
+
+                <Typography
+                  variant="body2"
+                  sx={{
+                    fontWeight: 'bold',
+                    color: overallSalesDifference >= 0 ? 'green' : 'red',
+                    marginTop: '10px',
+                  }}
+                >
+                  {overallSalesDifference >= 0 ? 'Net Improvement' : 'Decline'}: {formatCurrencyUGX(overallSalesDifference)} ({overallPercentageChange}%)
+                </Typography>
+              </CardContent>
+            </Card>
           </Grid>
         </Grid>
       </Box>

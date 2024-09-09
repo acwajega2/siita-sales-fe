@@ -22,73 +22,95 @@ interface DailyExpensesChartProps {
   expensesData: Array<{ expenseDate: string; expenseAmount?: number; branchCode: string }>;
 }
 
-// Component for rendering daily expenses chart
+// Component for rendering daily expenses chart and comparing with last month's data
 const DailyExpensesChart: React.FC<DailyExpensesChartProps> = ({ expensesData }) => {
   const chartRef = useRef<Chart | null>(null); // Reference to store the Chart instance
 
-  // Get the current month and year to filter the data
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
+  const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+  const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
 
-  // Memoize the function to group expenses by branch and day for the current month
-  const groupExpensesByBranchAndDayForCurrentMonth = useCallback(() => {
-    const dailyExpensesByBranch: { [branch: string]: { [day: string]: number } } = {};
+  // Helper function to group expenses by branch and day for a given month
+  const groupExpensesByBranchAndDay = useCallback(
+    (month: number, year: number) => {
+      const dailyExpensesByBranch: { [branch: string]: { [day: string]: number } } = {};
 
-    expensesData.forEach((expense) => {
-      const expenseDate = new Date(expense.expenseDate);
-      const day = expenseDate.getDate();
-      const month = expenseDate.getMonth();
-      const year = expenseDate.getFullYear();
-      const branchCode = expense.branchCode;
+      expensesData.forEach((expense) => {
+        const expenseDate = new Date(expense.expenseDate);
+        const day = expenseDate.getDate();
+        const expenseMonth = expenseDate.getMonth();
+        const expenseYear = expenseDate.getFullYear();
+        const branchCode = expense.branchCode;
 
-      if (month === currentMonth && year === currentYear) {
-        if (!dailyExpensesByBranch[branchCode]) {
-          dailyExpensesByBranch[branchCode] = {};
+        if (expenseMonth === month && expenseYear === year) {
+          if (!dailyExpensesByBranch[branchCode]) {
+            dailyExpensesByBranch[branchCode] = {};
+          }
+          dailyExpensesByBranch[branchCode][day] =
+            (dailyExpensesByBranch[branchCode][day] || 0) + (expense.expenseAmount || 0);
         }
-        dailyExpensesByBranch[branchCode][day] =
-          (dailyExpensesByBranch[branchCode][day] || 0) + (expense.expenseAmount || 0);
-      }
-    });
+      });
 
-    return dailyExpensesByBranch;
-  }, [expensesData, currentMonth, currentYear]); // Include currentMonth and currentYear as dependencies
+      return dailyExpensesByBranch;
+    },
+    [expensesData]
+  );
 
-  // Memoize the dailyExpensesByBranch, labels, and datasets to avoid unnecessary recalculations
-  const { labels, datasets, branchTotals, overallTotal, branchColors } = useMemo(() => {
-    const dailyExpensesByBranch = groupExpensesByBranchAndDayForCurrentMonth();
-    const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-    const labels = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  // Memoize the calculations for the current and last month
+  const { labels, datasets,  overallTotal, lastMonthTotal, comparisonData } =
+    useMemo(() => {
+      const dailyExpensesByBranch = groupExpensesByBranchAndDay(currentMonth, currentYear);
+      const lastMonthExpensesByBranch = groupExpensesByBranchAndDay(lastMonth, lastMonthYear);
 
-    const branchTotals: { [branch: string]: number } = {};
-    const branchColors: { [branch: string]: string } = {}; // Store colors for each branch
-    let overallTotal = 0;
+      const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+      const labels = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
-    const datasets = Object.keys(dailyExpensesByBranch).map((branch) => {
-      const branchData = dailyExpensesByBranch[branch];
-      const data = labels.map((day) => branchData[day] || 0);
+      const branchTotals: { [branch: string]: number } = {};
+      const branchLastMonthTotals: { [branch: string]: number } = {};
+      const branchColors: { [branch: string]: string } = {};
+      let overallTotal = 0;
+      let lastMonthTotal = 0;
 
-      // Calculate the total for each branch
-      const totalForBranch = data.reduce((sum, amount) => sum + amount, 0);
-      branchTotals[branch] = totalForBranch;
-      overallTotal += totalForBranch;
+      const datasets = Object.keys(dailyExpensesByBranch).map((branch) => {
+        const branchData = dailyExpensesByBranch[branch];
+        const data = labels.map((day) => branchData[day] || 0);
 
-      // Generate and store a color for the branch
-      const branchColor = getRandomColor();
-      branchColors[branch] = branchColor;
+        const totalForBranch = data.reduce((sum, amount) => sum + amount, 0);
+        branchTotals[branch] = totalForBranch;
+        overallTotal += totalForBranch;
 
-      return {
-        label: `Daily Expenses - ${branch}`,
-        data: data,
-        fill: false,
-        backgroundColor: branchColor,
-        borderColor: branchColor,
-      };
-    });
+        // Last month data
+        const lastMonthBranchData = lastMonthExpensesByBranch[branch] || {};
+        const lastMonthData = labels.map((day) => lastMonthBranchData[day] || 0);
+        const totalForLastMonthBranch = lastMonthData.reduce((sum, amount) => sum + amount, 0);
+        branchLastMonthTotals[branch] = totalForLastMonthBranch;
+        lastMonthTotal += totalForLastMonthBranch;
 
-    return { labels, datasets, branchTotals, overallTotal, branchColors };
-  }, [groupExpensesByBranchAndDayForCurrentMonth, currentMonth, currentYear]); // Include currentMonth and currentYear as dependencies
+        const branchColor = getRandomColor();
+        branchColors[branch] = branchColor;
 
-  // Memoize the chartData to avoid unnecessary object recreation
+        return {
+          label: `Daily Expenses - ${branch}`,
+          data: data,
+          fill: false,
+          backgroundColor: branchColor,
+          borderColor: branchColor,
+        };
+      });
+
+      const comparisonData = Object.keys(branchTotals).map((branch) => {
+        const currentTotal = branchTotals[branch] || 0;
+        const lastMonthTotal = branchLastMonthTotals[branch] || 0;
+        const difference = currentTotal - lastMonthTotal;
+        const percentageChange = lastMonthTotal ? ((difference / lastMonthTotal) * 100).toFixed(2) : 'N/A';
+
+        return { branch, currentTotal, lastMonthTotal, difference, percentageChange };
+      });
+
+      return { labels, datasets, branchTotals, overallTotal, branchLastMonthTotals, lastMonthTotal, comparisonData };
+    }, [groupExpensesByBranchAndDay, currentMonth, currentYear, lastMonth, lastMonthYear]);
+
   const chartData = useMemo(
     () => ({
       labels: labels,
@@ -97,13 +119,11 @@ const DailyExpensesChart: React.FC<DailyExpensesChartProps> = ({ expensesData })
     [labels, datasets]
   );
 
-  // Effect to handle the chart lifecycle
   useEffect(() => {
     if (chartRef.current) {
-      chartRef.current.destroy(); // Destroy the existing chart instance if it exists
+      chartRef.current.destroy();
     }
 
-    // Create a new chart instance
     const ctx = (document.getElementById('dailyExpensesChart') as HTMLCanvasElement).getContext('2d');
     if (ctx) {
       chartRef.current = new Chart(ctx, {
@@ -115,43 +135,114 @@ const DailyExpensesChart: React.FC<DailyExpensesChartProps> = ({ expensesData })
       });
     }
 
-    // Cleanup function to destroy the chart instance on component unmount or update
     return () => {
       if (chartRef.current) {
         chartRef.current.destroy();
       }
     };
-  }, [chartData]); // Depend on chartData to update the chart when data changes
+  }, [chartData]);
 
   return (
     <Paper elevation={3} sx={{ padding: 2 }}>
       <Typography variant="h6" gutterBottom>
         Daily Expenses for Current Month
       </Typography>
-      <canvas id="dailyExpensesChart" /> {/* Use a canvas for the chart */}
-      
+      <canvas id="dailyExpensesChart" /> {/* Chart canvas */}
+
       {/* Summary Section */}
       <Box mt={2}>
-        <Typography variant="h6">Summary (in UGX)</Typography>
-        <Grid container spacing={2}>
-          {Object.keys(branchTotals).map((branch) => (
+        <Typography variant="h6" gutterBottom>
+          Summary (in UGX)
+        </Typography>
+        <Grid container spacing={3}>
+          {comparisonData.map(({ branch, currentTotal, lastMonthTotal, difference, percentageChange }) => (
             <Grid item xs={12} md={6} key={branch}>
-              <Card sx={{ backgroundColor: branchColors[branch] + '20' }}> {/* Use a transparent background color */}
+              <Card
+                sx={{
+                  boxShadow: 4,
+                  borderRadius: 3,
+                  backgroundColor: '#f4f6f8',
+                  padding: '20px',
+                }}
+              >
                 <CardContent>
-                  <Typography variant="h6">
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 'bold',
+                      color: '#1976d2',
+                      marginBottom: '10px',
+                    }}
+                  >
                     {branch} Branch
                   </Typography>
-                  <Typography variant="body1">
-                    Total Expenses: {formatCurrencyUGX(branchTotals[branch])}
+                  <Typography variant="body2">
+                    <strong>Total Expenses (This Month):</strong> {formatCurrencyUGX(currentTotal)}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>Total Expenses (Last Month, same period):</strong> {formatCurrencyUGX(lastMonthTotal)}
+                  </Typography>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: 'bold',
+                      color: currentTotal > lastMonthTotal ? 'red' : 'green',
+                      mt: 1,
+                    }}
+                  >
+                    {currentTotal > lastMonthTotal ? 'Increased Spending' : 'Saving'}: {formatCurrencyUGX(Math.abs(difference))} (
+                    {percentageChange}%)
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
           ))}
+
           <Grid item xs={12}>
-            <Typography variant="h6">
-              Overall Total Expenses: {formatCurrencyUGX(overallTotal)}
-            </Typography>
+            <Card
+              sx={{
+                boxShadow: 4,
+                borderRadius: 3,
+                backgroundColor: '#f4f6f8',
+                padding: '20px',
+              }}
+            >
+              <CardContent>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontWeight: 'bold',
+                    color: '#1976d2',
+                    marginBottom: '10px',
+                  }}
+                >
+                  Overall Total Expenses
+                </Typography>
+                <Typography variant="body1">
+                  <strong>This Month:</strong> {formatCurrencyUGX(overallTotal)}
+                </Typography>
+                <Typography variant="body1">
+                  <strong>Last Month, same period:</strong> {formatCurrencyUGX(lastMonthTotal)}
+                </Typography>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    fontWeight: 'bold',
+                    color: overallTotal > lastMonthTotal ? 'red' : 'green',
+                    mt: 1,
+                  }}
+                >
+            {overallTotal > lastMonthTotal ? 'Increased Spending' : 'Saving'}: 
+{formatCurrencyUGX(Math.abs(overallTotal - lastMonthTotal))} 
+(
+    {lastMonthTotal !== 0 
+        ? (((overallTotal - lastMonthTotal) / lastMonthTotal) * 100).toFixed(2) 
+        : 'N/A'}%
+)
+
+                </Typography>
+              </CardContent>
+            </Card>
           </Grid>
         </Grid>
       </Box>

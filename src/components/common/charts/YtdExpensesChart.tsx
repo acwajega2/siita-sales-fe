@@ -27,7 +27,7 @@ const YtdExpensesChart: React.FC<YtdExpensesChartProps> = ({ expensesData }) => 
   const chartRef = useRef<Chart | null>(null);
 
   // Calculate chart data and summary with useMemo to avoid recalculating on every render
-  const { chartData, ytdExpenses, branchColors, totalYtdExpenses } = useMemo(() => {
+  const { chartData, ytdExpenses, totalYtdExpenses } = useMemo(() => {
     const groupedData: { [key: string]: number[] } = {};
     const branchColors: { [key: string]: string } = {}; // Store colors for each branch
 
@@ -105,26 +105,64 @@ const YtdExpensesChart: React.FC<YtdExpensesChartProps> = ({ expensesData }) => 
 
       {/* Summary Section */}
       <Box mt={2}>
-        <Typography variant="h6">YTD Expenses Summary (in UGX)</Typography>
-        <Grid container spacing={2}>
+        <Typography variant="h6" gutterBottom>
+          YTD Expenses Summary (in UGX)
+        </Typography>
+        <Grid container spacing={3}>
           {Object.keys(ytdExpenses).map((branch) => (
             <Grid item xs={12} md={6} key={branch}>
-              <Card sx={{ backgroundColor: branchColors[branch] + '20' }}> {/* Use a transparent background color */}
+              <Card
+                sx={{
+                  boxShadow: 4,
+                  borderRadius: 3,
+                  backgroundColor: '#f4f6f8',
+                  padding: '20px',
+                }}
+              >
                 <CardContent>
-                  <Typography variant="h6">
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 'bold',
+                      color: '#1976d2',
+                      marginBottom: '15px',
+                    }}
+                  >
                     {branch} Branch
                   </Typography>
-                  <Typography variant="body1">
-                    Total YTD expenses: {formatCurrencyUGX(ytdExpenses[branch])}
+
+                  <Typography variant="body2" gutterBottom>
+                    <strong>Total YTD expenses:</strong> {formatCurrencyUGX(ytdExpenses[branch])}
                   </Typography>
                 </CardContent>
               </Card>
             </Grid>
           ))}
           <Grid item xs={12}>
-            <Typography variant="h6">
-              Total YTD Expenses for All Branches: {formatCurrencyUGX(totalYtdExpenses)}
-            </Typography>
+            <Card
+              sx={{
+                boxShadow: 4,
+                borderRadius: 3,
+                backgroundColor: '#f4f6f8',
+                padding: '20px',
+              }}
+            >
+              <CardContent>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontWeight: 'bold',
+                    color: '#1976d2',
+                    marginBottom: '15px',
+                  }}
+                >
+                  Total YTD Expenses for All Branches
+                </Typography>
+                <Typography variant="body1">
+                  {formatCurrencyUGX(totalYtdExpenses)}
+                </Typography>
+              </CardContent>
+            </Card>
           </Grid>
         </Grid>
       </Box>

@@ -27,7 +27,7 @@ const MonthlySalesChart: React.FC<MonthlySalesChartProps> = ({ salesData }) => {
   const chartRef = useRef<Chart | null>(null);
 
   // Calculate chart data and summary with useMemo to avoid recalculating on every render
-  const { chartData, branchTotals, overallTotals, monthlyBranchTotals, branchColors } = useMemo(() => {
+  const { chartData, branchTotals, overallTotals, monthlyBranchTotals } = useMemo(() => {
     const groupedData: { [branch: string]: number[] } = {};
     const branchTotals: { [branch: string]: number } = {};
     const overallTotals: number[] = Array(12).fill(0);
@@ -115,19 +115,40 @@ const MonthlySalesChart: React.FC<MonthlySalesChartProps> = ({ salesData }) => {
 
       {/* Summary Section */}
       <Box mt={2}>
-        <Typography variant="h6">Summary (in UGX)</Typography>
-        <Grid container spacing={2}>
+        <Typography variant="h6" gutterBottom>
+          Sales Summary (in UGX)
+        </Typography>
+        <Grid container spacing={3}>
           {Object.keys(branchTotals).map((branch) => (
             <Grid item xs={12} md={6} key={branch}>
-              <Card sx={{ backgroundColor: branchColors[branch] + '20' }}> {/* Use a transparent background color */}
+              <Card
+                sx={{
+                  boxShadow: 4,
+                  borderRadius: 3,
+                  backgroundColor: '#f4f6f8',
+                  padding: '20px',
+                }}
+              >
                 <CardContent>
-                  <Typography variant="h6">
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 'bold',
+                      color: '#1976d2',
+                      marginBottom: '15px',
+                    }}
+                  >
                     {branch} Branch
                   </Typography>
-                  <Typography variant="body1">
-                    Total Sales: {formatCurrencyUGX(branchTotals[branch])}
+
+                  <Typography variant="body2" gutterBottom>
+                    <strong>Total Sales:</strong> {formatCurrencyUGX(branchTotals[branch])}
                   </Typography>
-                  <Typography variant="h6" mt={2}>Monthly Breakdown:</Typography>
+
+                  <Typography variant="h6" sx={{ marginTop: '15px', marginBottom: '10px' }}>
+                    Monthly Breakdown:
+                  </Typography>
+
                   {chartData.labels.map((month, index) => (
                     <Typography variant="body2" key={month}>
                       {month}: {formatCurrencyUGX(monthlyBranchTotals[branch][index])}
@@ -137,13 +158,35 @@ const MonthlySalesChart: React.FC<MonthlySalesChartProps> = ({ salesData }) => {
               </Card>
             </Grid>
           ))}
+
           <Grid item xs={12}>
-            <Typography variant="h6">Monthly Overall Sales:</Typography>
-            {chartData.labels.map((month, index) => (
-              <Typography variant="body1" key={month}>
-                {month}: {formatCurrencyUGX(overallTotals[index])}
-              </Typography>
-            ))}
+            <Card
+              sx={{
+                boxShadow: 4,
+                borderRadius: 3,
+                backgroundColor: '#f4f6f8',
+                padding: '20px',
+              }}
+            >
+              <CardContent>
+                <Typography
+                  variant="h6"
+                  sx={{
+                    fontWeight: 'bold',
+                    color: '#1976d2',
+                    marginBottom: '15px',
+                  }}
+                >
+                  Monthly Overall Sales
+                </Typography>
+
+                {chartData.labels.map((month, index) => (
+                  <Typography variant="body1" key={month}>
+                    {month}: {formatCurrencyUGX(overallTotals[index])}
+                  </Typography>
+                ))}
+              </CardContent>
+            </Card>
           </Grid>
         </Grid>
       </Box>
